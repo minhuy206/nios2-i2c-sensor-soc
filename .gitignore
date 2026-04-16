@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Quartus-generated project state and outputs
+.qsys_edit/
+db/
+incremental_db/
+output_files/
+*.qws
+*.bak
+
+# Nios II / BSP generated build outputs
+software/final_project/obj/
+software/final_project/*.elf
+software/final_project/*.map
+software/final_project/*.objdump
+software/final_project_bsp/obj/
+software/final_project_bsp/*.a
+
+# Archives and local export artifacts
+*.zip
