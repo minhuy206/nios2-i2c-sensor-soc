@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<preferences>
+ <debug showDebugMenu="0" />
+ <systemtable filter="All Interfaces">
+  <columns>
+   <connections preferredWidth="143" />
+   <irq preferredWidth="34" />
+  </columns>
+ </systemtable>
+ <library
+   expandedCategories="Library/Processors and Peripherals/Peripherals,Library/Basic Functions,Project,Library/Interface Protocols,Library/Basic Functions/On Chip Memory,Library/Processors and Peripherals,Library,Library/Interface Protocols/Serial" />
+ <window width="2582" height="1550" x="-11" y="-11" />
+</preferences>
