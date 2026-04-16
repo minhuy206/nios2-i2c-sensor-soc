@@ -81,9 +81,9 @@ int main(void)
         return 1;
     }
 
-    status = i2c_hal_set_speed(100000);
+    status = i2c_hal_set_speed(400000);
     if (status != I2C_HAL_OK) {
-        printf("i2c_hal_set_speed(100000) failed: %d\n", status);
+        printf("i2c_hal_set_speed(400000) failed: %d\n", status);
         return 1;
     }
 

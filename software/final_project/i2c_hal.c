@@ -87,6 +87,40 @@ int i2c_hal_probe(unsigned char dev_addr)
     return i2c_hal_map_status(status);
 }
 
+int i2c_hal_write(unsigned char dev_addr, const unsigned char *buf, unsigned int len)
+{
+    ALT_AVALON_I2C_STATUS_CODE status;
+
+    if (g_i2c_dev == 0) {
+        return I2C_HAL_ERR_INIT;
+    }
+    if ((buf == 0) || (len == 0u) || !i2c_hal_is_valid_addr(dev_addr)) {
+        return I2C_HAL_ERR_ARG;
+    }
+
+    alt_avalon_i2c_master_target_set(g_i2c_dev, dev_addr);
+    status = alt_avalon_i2c_master_tx(g_i2c_dev, buf, len, ALT_AVALON_I2C_NO_INTERRUPTS);
+
+    return i2c_hal_map_status(status);
+}
+
+int i2c_hal_read(unsigned char dev_addr, unsigned char *buf, unsigned int len)
+{
+    ALT_AVALON_I2C_STATUS_CODE status;
+
+    if (g_i2c_dev == 0) {
+        return I2C_HAL_ERR_INIT;
+    }
+    if ((buf == 0) || (len == 0u) || !i2c_hal_is_valid_addr(dev_addr)) {
+        return I2C_HAL_ERR_ARG;
+    }
+
+    alt_avalon_i2c_master_target_set(g_i2c_dev, dev_addr);
+    status = alt_avalon_i2c_master_rx(g_i2c_dev, buf, len, ALT_AVALON_I2C_NO_INTERRUPTS);
+
+    return i2c_hal_map_status(status);
+}
+
 int i2c_hal_write_reg(unsigned char dev_addr, unsigned char reg_addr, unsigned char value)
 {
     unsigned char txbuf[2];

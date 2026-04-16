@@ -27,6 +27,7 @@
 #define MAX30102_SAMPLE_BYTES         6u
 #define MAX30102_FIFO_DEPTH           32u
 #define MAX30102_RESET_RETRY_COUNT    100u
+#define MAX30102_PPG_RDY_MASK         0x40u
 
 static int max30102_write(unsigned char reg_addr, unsigned char value)
 {
@@ -58,6 +59,25 @@ static int max30102_read_multi(unsigned char reg_addr, unsigned char *buf, unsig
 
     status = i2c_hal_read_regs(MAX30102_I2C_ADDR, reg_addr, buf, len);
     if (status != I2C_HAL_OK) {
+        return MAX30102_ERR_IO;
+    }
+
+    return MAX30102_OK;
+}
+
+static int max30102_read_fifo_bytes(unsigned char *buf, unsigned int len)
+{
+    unsigned char reg_addr;
+
+    if ((buf == 0) || (len == 0u)) {
+        return MAX30102_ERR_ARG;
+    }
+
+    reg_addr = MAX30102_REG_FIFO_DATA;
+    if (i2c_hal_write(MAX30102_I2C_ADDR, &reg_addr, 1u) != I2C_HAL_OK) {
+        return MAX30102_ERR_IO;
+    }
+    if (i2c_hal_read(MAX30102_I2C_ADDR, buf, len) != I2C_HAL_OK) {
         return MAX30102_ERR_IO;
     }
 
@@ -143,13 +163,16 @@ int max30102_init(void)
         return MAX30102_ERR_ID;
     }
 
-    if (max30102_write(MAX30102_REG_INTR_ENABLE_1, 0x00u) != MAX30102_OK) {
+    if (max30102_write(MAX30102_REG_INTR_ENABLE_1, 0xC0u) != MAX30102_OK) {
         return MAX30102_ERR_INIT;
     }
     if (max30102_write(MAX30102_REG_INTR_ENABLE_2, 0x00u) != MAX30102_OK) {
         return MAX30102_ERR_INIT;
     }
-    if (max30102_write(MAX30102_REG_FIFO_CONFIG, 0x0Fu) != MAX30102_OK) {
+    if (max30102_write(MAX30102_REG_FIFO_CONFIG, 0x4Fu) != MAX30102_OK) {
+        return MAX30102_ERR_INIT;
+    }
+    if (max30102_write(MAX30102_REG_MODE_CONFIG, MAX30102_MODE_SPO2) != MAX30102_OK) {
         return MAX30102_ERR_INIT;
     }
     if (max30102_write(MAX30102_REG_SPO2_CONFIG, 0x27u) != MAX30102_OK) {
@@ -159,9 +182,6 @@ int max30102_init(void)
         return MAX30102_ERR_INIT;
     }
     if (max30102_write(MAX30102_REG_LED2_PA, 0x24u) != MAX30102_OK) {
-        return MAX30102_ERR_INIT;
-    }
-    if (max30102_write(MAX30102_REG_MODE_CONFIG, MAX30102_MODE_SPO2) != MAX30102_OK) {
         return MAX30102_ERR_INIT;
     }
 
@@ -178,8 +198,11 @@ int max30102_init(void)
 
 int max30102_read_sample(unsigned int *red, unsigned int *ir)
 {
+    unsigned char intr_status_1;
+    unsigned char intr_status_2;
     unsigned char fifo_wr_ptr;
     unsigned char fifo_rd_ptr;
+    unsigned char ovf_counter;
     unsigned char raw[MAX30102_SAMPLE_BYTES];
     unsigned int available;
 
@@ -187,19 +210,34 @@ int max30102_read_sample(unsigned int *red, unsigned int *ir)
         return MAX30102_ERR_ARG;
     }
 
+    if (max30102_read(MAX30102_REG_INTR_STATUS_1, &intr_status_1) != MAX30102_OK) {
+        return MAX30102_ERR_IO;
+    }
+    if (max30102_read(MAX30102_REG_INTR_STATUS_2, &intr_status_2) != MAX30102_OK) {
+        return MAX30102_ERR_IO;
+    }
     if (max30102_read(MAX30102_REG_FIFO_WR_PTR, &fifo_wr_ptr) != MAX30102_OK) {
         return MAX30102_ERR_IO;
     }
     if (max30102_read(MAX30102_REG_FIFO_RD_PTR, &fifo_rd_ptr) != MAX30102_OK) {
         return MAX30102_ERR_IO;
     }
-
-    available = (unsigned int)((fifo_wr_ptr - fifo_rd_ptr) & 0x1Fu);
-    if ((available == 0u) || (available >= MAX30102_FIFO_DEPTH)) {
-        return MAX30102_ERR_NOT_READY;
+    if (max30102_read(MAX30102_REG_OVF_COUNTER, &ovf_counter) != MAX30102_OK) {
+        return MAX30102_ERR_IO;
     }
 
-    if (max30102_read_multi(MAX30102_REG_FIFO_DATA, raw, MAX30102_SAMPLE_BYTES) != MAX30102_OK) {
+    available = (unsigned int)((fifo_wr_ptr - fifo_rd_ptr) & 0x1Fu);
+    if ((available == 0u) && (ovf_counter != 0u)) {
+        available = 1u;
+    }
+    if ((available == 0u) && ((intr_status_1 & MAX30102_PPG_RDY_MASK) == 0u)) {
+        return MAX30102_ERR_NOT_READY;
+    }
+    if (available >= MAX30102_FIFO_DEPTH) {
+        available = 1u;
+    }
+
+    if (max30102_read_fifo_bytes(raw, MAX30102_SAMPLE_BYTES) != MAX30102_OK) {
         return MAX30102_ERR_IO;
     }
 
